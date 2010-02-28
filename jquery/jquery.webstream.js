@@ -5,62 +5,67 @@ jQuery.webstream = function(settings) {
     var ws = new WebSocket(settings.webSocket);
     webstream.webSocket = ws;
     ws.onopen = function () {
-    if (settings.open !== undefined) {
-      settings.open();
+      if (settings.open !== undefined) {
+        settings.open();
       }
     };
     ws.onmessage = function (e) {
-    if (settings.data !== undefined) {
-      settings.data(e.data);
+      if (settings.data !== undefined) {
+        settings.data(e.data);
+      }
+    };
+    ws.onclose = function () {
+      if (settings.close !== undefined) {
+        settings.close();
       }
     };
     webstream.write = function (data) {
-    ws.send(data);
+      ws.send(data);
     };
   } else if (settings.http !== undefined) {
     // No websockets, fall back (currently only long polling supported)
     var listenRequest = function () {
+      $.ajax({
+        type: "GET",
+        url: settings.http,
+        cache: false,
+        data: "method=longpoll&request=listen&id="+webstream.longpoll.id,
+        dataType: 'json',
+        timeout: webstream.longpoll.timeout,
+        success: function (data) {
+          if (settings.data !== undefined) {
+            $.each(data, function (i, x) {
+              settings.data(x);
+            });
+          }
+        },
+        complete: function () {
+          listenRequest();
+        }
+      });
+    };
     $.ajax({
       type: "GET",
       url: settings.http,
       cache: false,
-      data: "method=longpoll&request=listen&id="+webstream.longpoll.id,
+      data: "method=longpoll&request=connect",
       dataType: 'json',
-      timeout: webstream.longpoll.timeout,
+      timeout: 30000,
       success: function (data) {
-      if (settings.data !== undefined) {
-        $.each(data, function (i, x) {
-        settings.data(x);
-        });
-      }
+        webstream.longpoll = {
+          id: data.id,
+         timeout: data.timeout
+        };
+        if (settings.open !== undefined) {
+          settings.open();
+        }
+        listenRequest();
       },
-      complete: function () {
-      listenRequest();
+      error: function () {
+        if (settings.error !== undefined) {
+          settings.error();
+        }
       }
-    });
-    };
-    $.ajax({
-    type: "GET",
-    url: settings.http,
-    cache: false,
-    data: "method=longpoll&request=connect",
-    dataType: 'json',
-    timeout: 30000,
-    success: function (data) {
-      webstream.longpoll = {
-      id: data.id,
-      timeout: data.timeout
-      };
-      if (settings.open !== undefined) {
-      settings.open();
-      }
-      listenRequest();
-    },
-    error: function () {
-      if (settings.error !== undefined) {
-      settings.error();
-      }
-    }
     });
     webstream.write = function (data) {
     $.ajax({
@@ -83,7 +88,7 @@ jQuery.webstream = function(settings) {
   } else {
     // No connection
     if (settings.error !== undefined) {
-    settings.error();
+      settings.error();
     }
   }
   return webstream;
