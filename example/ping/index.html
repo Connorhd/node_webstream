@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml"> 
+  <head> 
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" /> 
+    <title>WebStream Test</title> 
+    <script type="text/javascript" src="./jquery-1.4.2.min.js"></script> 
+    <script type="text/javascript" src="./jquery.webstream.js"></script> 
+    <script type="text/javascript"> 
+      var timer;
+      var test = $.webstream({
+        webSocket: 'ws://localhost:8002',
+        http: '/webstream',
+        open: function () {
+          $('#output').prepend("<div>Connected</div>");
+          timer = setInterval(function () {
+            $('#output').prepend("<div>Ping!</div>");
+            test.write("PING "+(new Date()).getTime())
+          }, 5000);
+        },
+        data: function (data) {
+          if (data.substring(0,4) == 'PONG') {
+            $('#output').prepend("<div>Pong: "+((new Date()).getTime()-parseInt(data.substring(5),10))+"ms</div>");
+          } else {
+            $('#output').prepend("<div>Data: "+data+"</div>");
+          }
+        },
+        close: function () {
+          $('#output').prepend("<div>Connection lost</div>");
+          clearInterval(timer);
+        },
+        error: function () {
+          $('#output').prepend("<div>Connection Failure</div>");
+        }
+      });
+    </script> 
+    
+  </head> 
+ 
+  <body>
+    <div id="output">
+    </div>
+  </body> 
+</html> 
